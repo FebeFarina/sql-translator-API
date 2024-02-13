@@ -4,7 +4,7 @@ import {chain} from "./database.js";
 export const app = express();
 app.use(express.text());
 
-app.get("/", async (req, res) => {
+app.post("/", async (req, res) => {
   try {
     const result = await chain.invoke({
       question: req.body,
