@@ -3,12 +3,12 @@ import {
   HumanMessagePromptTemplate,
   MessagesPlaceholder,
 } from "@langchain/core/prompts";
-import { ChatOpenAI } from "@langchain/openai";
-import { createOpenAIToolsAgent, AgentExecutor } from "langchain/agents";
-import { SqlToolkit } from "langchain/agents/toolkits/sql";
-import { AIMessage } from "langchain/schema";
-import { SqlDatabase } from "langchain/sql_db";
-import { DataSource } from "typeorm";
+import {ChatOpenAI} from "@langchain/openai";
+import {createOpenAIToolsAgent, AgentExecutor} from "langchain/agents";
+import {SqlToolkit} from "langchain/agents/toolkits/sql";
+import {AIMessage} from "langchain/schema";
+import {SqlDatabase} from "langchain/sql_db";
+import {DataSource} from "typeorm";
 
 const datasource = new DataSource({
   type: "postgres",
@@ -25,7 +25,7 @@ const db = await SqlDatabase.fromDataSourceParams({
   appDataSource: datasource,
 });
 
-const llm = new ChatOpenAI({ modelName: "gpt-3.5", temperature: 0 });
+const llm = new ChatOpenAI({modelName: "gpt-4", temperature: 0});
 const sqlToolKit = new SqlToolkit(db, llm);
 const tools = sqlToolKit.getTools();
 
