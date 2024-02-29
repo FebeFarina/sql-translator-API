@@ -1,5 +1,5 @@
 import express from "express";
-import {chain} from "./database.js";
+import {agent} from "./database.js";
 import cors from "cors";
 
 export const app = express();
@@ -12,8 +12,8 @@ app.use(
 
 app.post("/", async (req, res) => {
   try {
-    const result = await chain.invoke({
-      question: req.body,
+    const result = await agent.invoke({
+      input: req.body,
     });
     res.status(200).send(result);
   } catch (e) {
