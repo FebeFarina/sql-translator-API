@@ -73,7 +73,7 @@ app.post("/", async (req, res) => {
     console.log("Creating agent...");
 
     const SQL_PREFIX = `You are an agent designed to interact with a SQL database.
-  Given an input question, create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
+  Given an input question, create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer and the sql query used to get the answer.
   Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results using the LIMIT clause.
   You can order the results by a relevant column to return the most interesting examples in the database.
   Never query for all the columns from a specific table, only ask for a the few relevant columns given the question.
@@ -81,6 +81,7 @@ app.post("/", async (req, res) => {
   Only use the below tools.
   Only use the information returned by the below tools to construct your final answer.
   You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
+  The format of the output should be "SQL Query: <query>" and "Answer: <answer>
   
   DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
   
@@ -118,7 +119,22 @@ app.post("/", async (req, res) => {
       input: req.body.query,
     });
     console.log("Result obtained");
-    res.status(200).send(result);
+
+    const outputParts = result.output.split(/(SQL Query:|Answer:)/);
+
+    // Extract the SQL query and the answer
+    const sqlQueryIndex = outputParts.indexOf("SQL Query:") + 1;
+    const answerIndex = outputParts.indexOf("Answer:") + 1;
+
+    const sqlQuery =
+      sqlQueryIndex < outputParts.length
+        ? outputParts[sqlQueryIndex].trim()
+        : null;
+    const answer =
+      answerIndex < outputParts.length ? outputParts[answerIndex].trim() : null;
+
+    res.status(200).send({sqlQuery, answer});
+
   } catch (e) {
     res.status(500).send(e);
   }
