@@ -1,7 +1,16 @@
 import express from "express";
-import {getAgent} from "./database.js";
 import cors from "cors";
 import {DataSource} from "typeorm";
+import {
+  ChatPromptTemplate,
+  HumanMessagePromptTemplate,
+  MessagesPlaceholder,
+} from "@langchain/core/prompts";
+import {ChatOpenAI} from "@langchain/openai";
+import {createOpenAIToolsAgent, AgentExecutor} from "langchain/agents";
+import {SqlToolkit} from "langchain/agents/toolkits/sql";
+import {AIMessage} from "@langchain/core/messages";
+import {SqlDatabase} from "langchain/sql_db";
 
 const connect = async (params) => {
   const datasource = new DataSource({
@@ -36,13 +45,76 @@ app.use(
 );
 
 app.post("/", async (req, res) => {
-  console.log("hola");
   try {
-    const agent = await getAgent(req.body.databaseInfo);
+    console.log("Creating database connection...");
+
+    const datasource = new DataSource({
+      type: req.body.databaseInfo.databaseType,
+      host: req.body.databaseInfo.host,
+      port: req.body.databaseInfo.port,
+      username: req.body.databaseInfo.username,
+      password: req.body.databaseInfo.password,
+      database: req.body.databaseInfo.database,
+      schema: req.body.databaseInfo.schema,
+      synchronize: true,
+    });
+
+    console.log("Connecting to database");
+
+    const db = await SqlDatabase.fromDataSourceParams({
+      appDataSource: datasource,
+    });
+    console.log("Connected to database");
+
+    const llm = new ChatOpenAI({modelName: "gpt-4", temperature: 0});
+    const sqlToolKit = new SqlToolkit(db, llm);
+    const tools = sqlToolKit.getTools();
+
+    console.log("Creating agent...");
+
+    const SQL_PREFIX = `You are an agent designed to interact with a SQL database.
+  Given an input question, create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
+  Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results using the LIMIT clause.
+  You can order the results by a relevant column to return the most interesting examples in the database.
+  Never query for all the columns from a specific table, only ask for a the few relevant columns given the question.
+  You have access to tools for interacting with the database.
+  Only use the below tools.
+  Only use the information returned by the below tools to construct your final answer.
+  You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
+  
+  DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
+  
+  If the question does not seem related to the database, just return "I don't know" as the answer.`;
+    const SQL_SUFFIX = `Begin!
+  
+  Question: {input}
+  Thought: I should look at the tables in the database to see what I can query.
+  {agent_scratchpad}`;
+
+    const prompt = ChatPromptTemplate.fromMessages([
+      ["system", SQL_PREFIX],
+      HumanMessagePromptTemplate.fromTemplate("{input}"),
+      new AIMessage(SQL_SUFFIX.replace("{agent_scratchpad}", "")),
+      new MessagesPlaceholder("agent_scratchpad"),
+    ]);
+    const newPrompt = await prompt.partial({
+      dialect: sqlToolKit.dialect,
+      top_k: "10",
+    });
+    const runnableAgent = await createOpenAIToolsAgent({
+      llm,
+      tools,
+      prompt: newPrompt,
+    });
+
+    const agentExecutor = new AgentExecutor({
+      agent: runnableAgent,
+      tools,
+    });
 
     console.log("Invoking agent...");
 
-    const result = await agent.invoke({
+    const result = await agentExecutor.invoke({
       input: req.body.query,
     });
     console.log("Result obtained");
