@@ -81,7 +81,7 @@ app.post("/", async (req, res) => {
   Only use the below tools.
   Only use the information returned by the below tools to construct your final answer.
   You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
-  The format of the output should be "SQL Query: <query>" and "Answer: <answer>
+  The format of the output should be "SQL Query: <query>" and "Answer: <answer>. If a SQL query is not needed, return "SQL Query: N/A" and "Answer: <answer>".
   
   DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
   
@@ -134,7 +134,6 @@ app.post("/", async (req, res) => {
       answerIndex < outputParts.length ? outputParts[answerIndex].trim() : null;
 
     res.status(200).send({sqlQuery, answer});
-
   } catch (e) {
     res.status(500).send(e);
   }
