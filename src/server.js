@@ -1,16 +1,16 @@
 import express from "express";
 import cors from "cors";
-import {DataSource} from "typeorm";
+import { DataSource } from "typeorm";
 import {
   ChatPromptTemplate,
   HumanMessagePromptTemplate,
   MessagesPlaceholder,
 } from "@langchain/core/prompts";
-import {ChatOpenAI} from "@langchain/openai";
-import {createOpenAIToolsAgent, AgentExecutor} from "langchain/agents";
-import {SqlToolkit} from "langchain/agents/toolkits/sql";
-import {AIMessage} from "@langchain/core/messages";
-import {SqlDatabase} from "langchain/sql_db";
+import { LlamaCpp } from "@langchain/community/llms/llama_cpp";
+import { createOpenAIToolsAgent, AgentExecutor } from "langchain/agents";
+import { SqlToolkit } from "langchain/agents/toolkits/sql";
+import { AIMessage } from "@langchain/core/messages";
+import { SqlDatabase } from "langchain/sql_db";
 
 const connect = async (params) => {
   const datasource = new DataSource({
@@ -66,7 +66,9 @@ app.post("/", async (req, res) => {
     });
     console.log("Connected to database");
 
-    const llm = new ChatOpenAI({modelName: "gpt-4", temperature: 0});
+    const llamaPath = "/home/febe/llama2/llama.cpp/models/7B/gguf-llama2-q4_0.bin"
+
+    const llm = new LlamaCpp({ modelPath: llamaPath });
     const sqlToolKit = new SqlToolkit(db, llm);
     const tools = sqlToolKit.getTools();
 
@@ -133,7 +135,7 @@ app.post("/", async (req, res) => {
     const answer =
       answerIndex < outputParts.length ? outputParts[answerIndex].trim() : null;
 
-    res.status(200).send({sqlQuery, answer});
+    res.status(200).send({ sqlQuery, answer });
   } catch (e) {
     res.status(500).send(e);
   }
