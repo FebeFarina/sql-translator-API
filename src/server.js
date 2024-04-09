@@ -7,7 +7,7 @@ import {
   MessagesPlaceholder,
 } from "@langchain/core/prompts";
 import { LlamaCpp } from "@langchain/community/llms/llama_cpp";
-import { createOpenAIToolsAgent, AgentExecutor } from "langchain/agents";
+import { createReactAgent, AgentExecutor } from "langchain/agents";
 import { SqlToolkit } from "langchain/agents/toolkits/sql";
 import { AIMessage } from "@langchain/core/messages";
 import { SqlDatabase } from "langchain/sql_db";
@@ -38,6 +38,7 @@ const connect = async (params) => {
 export const app = express();
 app.use(express.text());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: "http://localhost:3000",
@@ -47,15 +48,16 @@ app.use(
 app.post("/", async (req, res) => {
   try {
     console.log("Creating database connection...");
+    console.log(req.body);
 
     const datasource = new DataSource({
-      type: req.body.databaseInfo.databaseType,
-      host: req.body.databaseInfo.host,
-      port: req.body.databaseInfo.port,
-      username: req.body.databaseInfo.username,
-      password: req.body.databaseInfo.password,
-      database: req.body.databaseInfo.database,
-      schema: req.body.databaseInfo.schema,
+      type: req.body.databaseType,
+      host: req.body.host,
+      port: req.body.port,
+      username: req.body.username,
+      password: req.body.password,
+      database: req.body.database,
+      schema: req.body.schema,
       synchronize: true,
     });
 
@@ -71,6 +73,7 @@ app.post("/", async (req, res) => {
     const llm = new LlamaCpp({ modelPath: llamaPath });
     const sqlToolKit = new SqlToolkit(db, llm);
     const tools = sqlToolKit.getTools();
+    const toolNames = tools.map((tool) => tool.name);
 
     console.log("Creating agent...");
 
@@ -100,11 +103,19 @@ app.post("/", async (req, res) => {
       new AIMessage(SQL_SUFFIX.replace("{agent_scratchpad}", "")),
       new MessagesPlaceholder("agent_scratchpad"),
     ]);
+
+
     const newPrompt = await prompt.partial({
       dialect: sqlToolKit.dialect,
       top_k: "10",
     });
-    const runnableAgent = await createOpenAIToolsAgent({
+
+    newPrompt.tools = tools;
+    newPrompt.tool_names = toolNames;
+
+    console.log(newPrompt);
+
+    const runnableAgent = await createReactAgent({
       llm,
       tools,
       prompt: newPrompt,
@@ -137,6 +148,7 @@ app.post("/", async (req, res) => {
 
     res.status(200).send({ sqlQuery, answer });
   } catch (e) {
+    console.log(e);
     res.status(500).send(e);
   }
 });
