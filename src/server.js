@@ -66,7 +66,12 @@ app.post("/", async (req, res) => {
     });
     console.log("Connected to database");
 
-    const llm = new ChatOpenAI({modelName: "gpt-4", temperature: 0});
+    const llm = new ChatOpenAI({
+      temperature: 0,
+      configuration: {
+        baseURL: "http://openai.ull.es:8080/v1"
+      }
+    });
     const sqlToolKit = new SqlToolkit(db, llm);
     const tools = sqlToolKit.getTools();
 
