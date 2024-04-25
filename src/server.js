@@ -54,7 +54,7 @@ app.post("/", async (req, res) => {
       username: req.body.databaseInfo.username,
       password: req.body.databaseInfo.password,
       database: req.body.databaseInfo.database,
-      schema: req.body.databaseInfo.schema,
+      schema: req.body.databaseInfo.schema
     });
 
     console.log("Connecting to database");
@@ -69,7 +69,7 @@ app.post("/", async (req, res) => {
     const sqlToolKit = new SqlToolkit(db, llm);
     const tools = sqlToolKit.getTools();
     const SQL_PREFIX = `You are an agent designed to interact with a SQL database.
-    Given an input question, create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer and the sql query used to get the answer.
+    Given an input question, create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
     Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results using the LIMIT clause.
     You can order the results by a relevant column to return the most interesting examples in the database.
     Never query for all the columns from a specific table, only ask for a the few relevant columns given the question.
@@ -77,13 +77,12 @@ app.post("/", async (req, res) => {
     Only use the below tools.
     Only use the information returned by the below tools to construct your final answer.
     You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
-    The format of the output should be "SQL Query: <query>" and "Answer: <answer>. 
-    The query should be a valid SQL query that can be run on the database.
-    If a SQL query is not needed, return "SQL Query: N/A" and "Answer: <answer>".
-    Don't forget to take into account the database schema when constructing your query.
+    
     DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
     
-    DO NOT ANSWER with any thoughts or comments about the question or the query. Just answer the question and provide the SQL query used to get the answer.`;
+    If the question does not seem related to the database, just return "I don't know" as the answer.
+    The output format should be: "SQL Query: <query> Answer: <answer>. If no SQL query is needed, just return the answer.
+    When writting the SQL query, use the table names and column names as they are in the database. Dont forget about the schema name if it is needed.`;
     const SQL_SUFFIX = `Begin!
     
     Question: {input}
@@ -107,7 +106,7 @@ app.post("/", async (req, res) => {
     const agentExecutor = new AgentExecutor({
       agent: runnableAgent,
       tools,
-      maxIterations: 30,
+      maxIterations: 100,
     });
 
 
@@ -131,10 +130,10 @@ app.post("/", async (req, res) => {
         : null;
     const answer =
       answerIndex < outputParts.length ? outputParts[answerIndex].trim() : null;
-
     res.status(200).send({ sqlQuery, answer });
+
   } catch (e) {
-    res.status(500).send(e);
+    res.status(500).send(e.toString());
   }
 });
 
@@ -144,7 +143,7 @@ app.post("/ping", (req, res) => {
       res.status(200).send("Connected");
     })
     .catch((e) => {
-      res.status(500).send(e);
+      res.status(500).send(e.toString());
     });
 });
 
