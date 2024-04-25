@@ -5,12 +5,15 @@ import {
   ChatPromptTemplate,
   HumanMessagePromptTemplate,
   MessagesPlaceholder,
+  PromptTemplate,
 } from "@langchain/core/prompts";
 import { LlamaCpp } from "@langchain/community/llms/llama_cpp";
 import { createReactAgent, AgentExecutor } from "langchain/agents";
-import { SqlToolkit } from "langchain/agents/toolkits/sql";
+import { SqlToolkit, createSqlAgent } from "langchain/agents/toolkits/sql";
 import { AIMessage } from "@langchain/core/messages";
 import { SqlDatabase } from "langchain/sql_db";
+
+import { pull } from "langchain/hub"
 
 const connect = async (params) => {
   const datasource = new DataSource({
@@ -48,7 +51,6 @@ app.use(
 app.post("/", async (req, res) => {
   try {
     console.log("Creating database connection...");
-    console.log(req.body);
 
     const datasource = new DataSource({
       type: req.body.databaseType,
@@ -73,7 +75,7 @@ app.post("/", async (req, res) => {
     const llm = new LlamaCpp({ modelPath: llamaPath });
     const sqlToolKit = new SqlToolkit(db, llm);
     const tools = sqlToolKit.getTools();
-    const toolNames = tools.map((tool) => tool.name);
+    const tool_names = tools.map((tool) => tool.name);
 
     console.log("Creating agent...");
 
@@ -97,34 +99,39 @@ app.post("/", async (req, res) => {
   Thought: I should look at the tables in the database to see what I can query.
   {agent_scratchpad}`;
 
-    const prompt = ChatPromptTemplate.fromMessages([
-      ["system", SQL_PREFIX],
-      HumanMessagePromptTemplate.fromTemplate("{input}"),
-      new AIMessage(SQL_SUFFIX.replace("{agent_scratchpad}", "")),
-      new MessagesPlaceholder("agent_scratchpad"),
-    ]);
+    // const prompt = ChatPromptTemplate.fromMessages([
+    //   ["system", SQL_PREFIX],
+    //   HumanMessagePromptTemplate.fromTemplate("{input}"),
+    //   new AIMessage(SQL_SUFFIX.replace("{agent_scratchpad}", "")),
+    //   new MessagesPlaceholder("agent_scratchpad"),
+    // ]);
 
 
-    const newPrompt = await prompt.partial({
-      dialect: sqlToolKit.dialect,
-      top_k: "10",
-    });
+    // const newPrompt = await prompt.partial({
+    //   dialect: sqlToolKit.dialect,
+    //   top_k: "10",
+    // });
 
-    newPrompt.tools = tools;
-    newPrompt.tool_names = toolNames;
+    // const runnableAgent = await createReactAgent({
+    //   llm,
+    //   tools,
+    //   prompt: newPrompt,
+    // });
 
-    console.log(newPrompt);
+    // const agentExecutor = new AgentExecutor({
+    //   agent: runnableAgent,
+    //   tools,
+    // });
 
-    const runnableAgent = await createReactAgent({
-      llm,
-      tools,
-      prompt: newPrompt,
-    });
+    const agent = createSqlAgent(llm, sqlToolKit);
 
     const agentExecutor = new AgentExecutor({
-      agent: runnableAgent,
+      agent,
       tools,
+      verbose: true,
+      handleParsingErrors: "Check your output and make sure it conforms!"
     });
+
 
     console.log("Invoking agent...");
 
@@ -132,21 +139,24 @@ app.post("/", async (req, res) => {
       input: req.body.query,
     });
     console.log("Result obtained");
+    console.log(result);
 
-    const outputParts = result.output.split(/(SQL Query:|Answer:)/);
+    // const outputParts = result.output.split(/(SQL Query:|Answer:)/);
 
-    // Extract the SQL query and the answer
-    const sqlQueryIndex = outputParts.indexOf("SQL Query:") + 1;
-    const answerIndex = outputParts.indexOf("Answer:") + 1;
+    // // Extract the SQL query and the answer
+    // const sqlQueryIndex = outputParts.indexOf("SQL Query:") + 1;
+    // const answerIndex = outputParts.indexOf("Answer:") + 1;
 
-    const sqlQuery =
-      sqlQueryIndex < outputParts.length
-        ? outputParts[sqlQueryIndex].trim()
-        : null;
-    const answer =
-      answerIndex < outputParts.length ? outputParts[answerIndex].trim() : null;
+    // const sqlQuery =
+    //   sqlQueryIndex < outputParts.length
+    //     ? outputParts[sqlQueryIndex].trim()
+    //     : null;
+    // const answer =
+    //   answerIndex < outputParts.length ? outputParts[answerIndex].trim() : null;
 
-    res.status(200).send({ sqlQuery, answer });
+    // res.status(200).send({ sqlQuery, answer });
+
+    res.status(200).send(result);
   } catch (e) {
     console.log(e);
     res.status(500).send(e);
