@@ -20,8 +20,7 @@ const connect = async (params) => {
     username: params.databaseInfo.username,
     password: params.databaseInfo.password,
     database: params.databaseInfo.database,
-    schema: params.databaseInfo.schema,
-    synchronize: true,
+    schema: params.databaseInfo.schema
   });
   console.log("Connecting to database");
   try {
@@ -56,7 +55,6 @@ app.post("/", async (req, res) => {
       password: req.body.databaseInfo.password,
       database: req.body.databaseInfo.database,
       schema: req.body.databaseInfo.schema,
-      synchronize: true,
     });
 
     console.log("Connecting to database");
@@ -64,6 +62,9 @@ app.post("/", async (req, res) => {
     const db = await SqlDatabase.fromDataSourceParams({
       appDataSource: datasource,
     });
+
+    console.log(db.allTables.map((t) => t.tableName));
+
     const llm = new ChatOpenAI({ model: "gpt-3.5-turbo", temperature: 0 });
     const sqlToolKit = new SqlToolkit(db, llm);
     const tools = sqlToolKit.getTools();
@@ -76,11 +77,13 @@ app.post("/", async (req, res) => {
     Only use the below tools.
     Only use the information returned by the below tools to construct your final answer.
     You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
-    The format of the output should be "SQL Query: <query>" and "Answer: <answer>. If a SQL query is not needed, return "SQL Query: N/A" and "Answer: <answer>".
-    
+    The format of the output should be "SQL Query: <query>" and "Answer: <answer>. 
+    The query should be a valid SQL query that can be run on the database.
+    If a SQL query is not needed, return "SQL Query: N/A" and "Answer: <answer>".
+    Don't forget to take into account the database schema when constructing your query.
     DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
     
-    If the question does not seem related to the database, just return "I don't know" as the answer.`;
+    DO NOT ANSWER with any thoughts or comments about the question or the query. Just answer the question and provide the SQL query used to get the answer.`;
     const SQL_SUFFIX = `Begin!
     
     Question: {input}
@@ -104,6 +107,7 @@ app.post("/", async (req, res) => {
     const agentExecutor = new AgentExecutor({
       agent: runnableAgent,
       tools,
+      maxIterations: 30,
     });
 
 
@@ -112,6 +116,7 @@ app.post("/", async (req, res) => {
     const result = await agentExecutor.invoke({
       input: req.body.query,
     });
+
     console.log("Result obtained");
 
     const outputParts = result.output.split(/(SQL Query:|Answer:)/);
