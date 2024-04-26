@@ -19,7 +19,8 @@ import express from "express";
 import fs from "fs";
 import { DataSource } from "typeorm";
 
-import { examples } from "./examples.js";
+import { examples_titsa } from "./examples_titsa.js";
+import { examples_movies } from "./examples_movies.js";
 
 async function queryAsList(database, query) {
   const res = JSON.parse(
@@ -94,20 +95,22 @@ app.post("/", async (req, res) => {
 
     console.log("Tables in database: ", tablesWithSchema.join(", "));
 
+    /**
+     * 
     let properNouns = await queryAsList(db, "SELECT parada_nombre FROM titsa.paradas");
     properNouns = properNouns.concat(await queryAsList(db, "SELECT linea_nombre_largo FROM titsa.lineas"));
-
+    
     console.log(properNouns.length + " proper nouns found")
     console.log(properNouns.slice(0, 10) + "...")
-
+    
     const vectorDb = await MemoryVectorStore.fromTexts(
       properNouns,
       {},
       new OpenAIEmbeddings()
     );
-
+    
     console.log("Creating tools...")
-
+    
     const description = `Use to look up values to filter on.
     Input is an approximate spelling of the proper noun, output is valid proper nouns.
     Use the noun most similar to the search.`;
@@ -115,17 +118,19 @@ app.post("/", async (req, res) => {
       description,
       name: "search_proper_nouns",
     });
-
+    
     const retriever = vectorDb.asRetriever(15);
-
+    
     console.log("Tools created")
-
+    
+    */
     const llm = new ChatOpenAI({ model: "gpt-4", temperature: 0 });
     const sqlToolKit = new SqlToolkit(db, llm);
-    const tools = tools = [...sqlToolKit.getTools(), retrieverTool];
+    const tools = sqlToolKit.getTools();
+    //const tools = tools = [...sqlToolKit.getTools(), retrieverTool];
 
     const exampleSelector = await SemanticSimilarityExampleSelector.fromExamples(
-      examples,
+      examples_titsa, // change this depending on the database
       new OpenAIEmbeddings(),
       HNSWLib,
       {
@@ -136,21 +141,20 @@ app.post("/", async (req, res) => {
 
     const SQL_PREFIX = `You are an agent designed to interact with a SQL database.
     Given an input question, create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
-    Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results using the LIMIT clause.
+    Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results.
     You can order the results by a relevant column to return the most interesting examples in the database.
-    Never query for all the columns from a specific table, only ask for a the few relevant columns given the question.
+    Never query for all the columns from a specific table, only ask for the relevant columns given the question.
     You have access to tools for interacting with the database.
-    Only use the below tools.
-    Only use the information returned by the below tools to construct your final answer.
+    Only use the given tools. Only use the information returned by the tools to construct your final answer.
     You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
     
     DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
     
-    You have access to the following tables: {table_names}
-    
     If the question does not seem related to the database, just return "I don't know" as the answer.
+    
     The output format should be: "SQL Query: <query> Answer: <answer>. If no SQL query is needed, just return the answer.
-    When writting the SQL query, use the table names and column names as they are in the database. Dont forget about the schema name if it is needed.`;
+    You have access to the following tables: {table_names}
+    Here are some examples of user inputs and their corresponding SQL queries:`;
 
     const SQL_SUFFIX = `Begin!
       Question: {input}
@@ -211,7 +215,7 @@ app.post("/", async (req, res) => {
     const answer =
       answerIndex < outputParts.length ? outputParts[answerIndex].trim() : null;
 
-    examples.push({
+    examples_titsa.push({
       input: req.body.query,
       output: {
         sqlQuery,

@@ -1,4 +1,4 @@
-export const examples = [
+export const examples_movies = [
     {
         "input": "Tell me the name of 5 actors who have acted in the most movies, along with the number of movies they have acted in.",
         "output": {
@@ -39,20 +39,6 @@ export const examples = [
         "output": {
             "sqlQuery": "```sql\nSELECT kw.keyword_name, COUNT(*) AS keyword_count\nFROM movies.movie_keywords mk\nJOIN movies.keyword kw\nON kw.keyword_id = mk.keyword_id\nGROUP BY kw.keyword_name\nORDER BY keyword_count DESC\nLIMIT 1```",
             "answer": "The most common keyword is \"woman director\"."
-        }
-    },
-    {
-        "input": "¿Cuál es el nombre largo de la línea 1?",
-        "output": {
-            "sqlQuery": "SELECT linea_nombre_largo FROM titsa.lineas WHERE id_linea = 1 LIMIT 1.",
-            "answer": "TRANVIA L1"
-        }
-    },
-    {
-        "input": "¿Cuál es el nombre de la parada 1001?",
-        "output": {
-            "sqlQuery": "SELECT parada_nombre FROM titsa.paradas WHERE id_parada = 1001 LIMIT 1.",
-            "answer": "COCHERA PARQUE LA REINA"
         }
     }
 ]
