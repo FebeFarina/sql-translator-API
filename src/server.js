@@ -129,8 +129,9 @@ app.post("/", async (req, res) => {
     const tools = sqlToolKit.getTools();
     //const tools = tools = [...sqlToolKit.getTools(), retrieverTool];
 
+
     const exampleSelector = await SemanticSimilarityExampleSelector.fromExamples(
-      examples_titsa, // change this depending on the database
+      examples_movies, // change this depending on the database
       new OpenAIEmbeddings(),
       HNSWLib,
       {
@@ -152,7 +153,7 @@ app.post("/", async (req, res) => {
     
     If the question does not seem related to the database, just return "I don't know" as the answer.
     
-    The output format should be: "SQL Query: <query> Answer: <answer>. If no SQL query is needed, just return the answer.
+    The output format should be: "SQL Query: <query> Answer: <answer>". If no SQL query is needed, return "SQL Query: N/A Answer <answer>".
     You have access to the following tables: {table_names}
     Here are some examples of user inputs and their corresponding SQL queries:`;
 
@@ -228,7 +229,7 @@ app.post("/", async (req, res) => {
     process.stdin.on("data", (data) => {
       const input = data.toString().trim();
       if ((input === "Y" || input === "y") && answer != "I don't know.") {
-        fs.writeFileSync("./src/examples.js", `export const examples = ${JSON.stringify(examples, null, 2)
+        fs.writeFileSync("./src/examples_movies.js", `export const examples = ${JSON.stringify(examples_movies, null, 2)
           }`);
         console.log("Result saved");
       } else {
