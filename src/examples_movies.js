@@ -1,4 +1,4 @@
-export const examples = [
+export const examples_movies = [
   {
     "input": "Tell me the name of 5 actors who have acted in the most movies, along with the number of movies they have acted in.",
     "output": {
