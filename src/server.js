@@ -1,16 +1,9 @@
 import express from "express";
 import cors from "cors";
-import {DataSource} from "typeorm";
-import {
-  ChatPromptTemplate,
-  HumanMessagePromptTemplate,
-  MessagesPlaceholder,
-} from "@langchain/core/prompts";
-import {ChatOpenAI} from "@langchain/openai";
-import {createOpenAIToolsAgent, AgentExecutor} from "langchain/agents";
-import {SqlToolkit} from "langchain/agents/toolkits/sql";
-import {AIMessage} from "@langchain/core/messages";
-import {SqlDatabase} from "langchain/sql_db";
+import { DataSource } from "typeorm";
+import { ChatOpenAI } from "@langchain/openai";
+import { SqlToolkit, createSqlAgent } from "langchain/agents/toolkits/sql";
+import { SqlDatabase } from "langchain/sql_db";
 
 const connect = async (params) => {
   const datasource = new DataSource({
@@ -65,8 +58,12 @@ app.post("/", async (req, res) => {
       appDataSource: datasource,
     });
     console.log("Connected to database");
-
-    const llm = new ChatOpenAI({modelName: "gpt-4", temperature: 0});
+    const llm = new ChatOpenAI(
+      {
+        temperature: 0,
+        model: "gpt-3.5-turbo",
+      }
+    );
     const sqlToolKit = new SqlToolkit(db, llm);
     const tools = sqlToolKit.getTools();
 
@@ -92,30 +89,20 @@ app.post("/", async (req, res) => {
   Thought: I should look at the tables in the database to see what I can query.
   {agent_scratchpad}`;
 
-    const prompt = ChatPromptTemplate.fromMessages([
-      ["system", SQL_PREFIX],
-      HumanMessagePromptTemplate.fromTemplate("{input}"),
-      new AIMessage(SQL_SUFFIX.replace("{agent_scratchpad}", "")),
-      new MessagesPlaceholder("agent_scratchpad"),
-    ]);
-    const newPrompt = await prompt.partial({
-      dialect: sqlToolKit.dialect,
-      top_k: "10",
-    });
-    const runnableAgent = await createOpenAIToolsAgent({
+    const sqlAgent = createSqlAgent(
       llm,
-      tools,
-      prompt: newPrompt,
-    });
-
-    const agentExecutor = new AgentExecutor({
-      agent: runnableAgent,
-      tools,
-    });
+      sqlToolKit,
+      {
+        inputVariables: ["input", "agent_scratchpad"],
+        prefix: SQL_PREFIX,
+        suffix: SQL_SUFFIX,
+        topK: 10,
+      }
+    );
 
     console.log("Invoking agent...");
 
-    const result = await agentExecutor.invoke({
+    const result = await sqlAgent.invoke({
       input: req.body.query,
     });
     console.log("Result obtained");
@@ -133,7 +120,7 @@ app.post("/", async (req, res) => {
     const answer =
       answerIndex < outputParts.length ? outputParts[answerIndex].trim() : null;
 
-    res.status(200).send({sqlQuery, answer});
+    res.status(200).send({ sqlQuery, answer });
   } catch (e) {
     res.status(500).send(e);
   }
