@@ -1,0 +1,39 @@
+{
+  "answers": [
+    "I don't know",
+    "I don't know",
+    "I don't know.",
+    "I don't know",
+    "I don't know",
+    null,
+    "I don't know.",
+    "I don't know.",
+    "I don't know",
+    "I don't know"
+  ],
+  "sqlQueries": [
+    "N/A",
+    "N/A",
+    "N/A",
+    "N/A",
+    "N/A",
+    null,
+    "N/A",
+    "N/A",
+    "N/A",
+    "N/A"
+  ],
+  "execTime": [
+    2070,
+    1483,
+    1941,
+    2654,
+    1539,
+    null,
+    1291,
+    3278,
+    1258,
+    1288
+  ],
+  "meanTime": null
+}
