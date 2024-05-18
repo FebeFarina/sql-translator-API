@@ -1,9 +1,18 @@
 import express from "express";
 import cors from "cors";
+import "dotenv/config";
+import {
+  ChatPromptTemplate,
+  HumanMessagePromptTemplate,
+  MessagesPlaceholder,
+} from "@langchain/core/prompts";
+import { createOpenAIToolsAgent, AgentExecutor } from "langchain/agents";
 import { DataSource } from "typeorm";
 import { ChatOpenAI } from "@langchain/openai";
+import { AIMessage } from "@langchain/core/messages";
 import { SqlToolkit, createSqlAgent } from "langchain/agents/toolkits/sql";
 import { SqlDatabase } from "langchain/sql_db";
+import { loadEvaluator } from "langchain/evaluation";
 
 const connect = async (params) => {
   const datasource = new DataSource({
@@ -61,7 +70,7 @@ app.post("/", async (req, res) => {
     const llm = new ChatOpenAI(
       {
         temperature: 0,
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o  ",
       }
     );
     const sqlToolKit = new SqlToolkit(db, llm);
@@ -78,11 +87,13 @@ app.post("/", async (req, res) => {
   Only use the below tools.
   Only use the information returned by the below tools to construct your final answer.
   You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
-  The format of the output should be "SQL Query: <query>" and "Answer: <answer>. If a SQL query is not needed, return "SQL Query: N/A" and "Answer: <answer>".
   
   DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
   
-  If the question does not seem related to the database, just return "I don't know" as the answer.`;
+  If the question does not seem related to the database, just return "I don't know" as the answer.
+  The format of the output should ALWAYS be "SQL Query: <query>" and "Answer: <answer>. If a SQL query is not needed, return "SQL Query: N/A" and "Answer: <answer>".
+  
+  `;
     const SQL_SUFFIX = `Begin!
   
   Question: {input}
@@ -93,19 +104,58 @@ app.post("/", async (req, res) => {
       llm,
       sqlToolKit,
       {
-        inputVariables: ["input", "agent_scratchpad"],
         prefix: SQL_PREFIX,
-        suffix: SQL_SUFFIX,
-        topK: 10,
       }
     );
 
+
+    // const prompt = ChatPromptTemplate.fromMessages([
+    //   ["system", SQL_PREFIX],
+    //   HumanMessagePromptTemplate.fromTemplate("{input}"),
+    //   new AIMessage(SQL_SUFFIX.replace("{agent_scratchpad}", "")),
+    //   new MessagesPlaceholder("agent_scratchpad"),
+    // ]);
+
+    // console.log("Prompt created");
+
+    // const newPrompt = await prompt.partial({
+    //   dialect: sqlToolKit.dialect,
+    //   top_k: "10",
+    // });
+
+    // console.log("Prompt created");
+
+    // const runnableAgent = await createOpenAIToolsAgent({
+    //   llm,
+    //   tools,
+    //   prompt: newPrompt,
+    // });
+
+    // console.log("Agent created");
+
+    // const agentExecutor = new AgentExecutor({
+    //   agent: runnableAgent,
+    //   tools,
+    // });
+
     console.log("Invoking agent...");
 
-    const result = await sqlAgent.invoke({
-      input: req.body.query,
-    });
+    const result = await sqlAgent.invoke({ input: req.body.query });
+    //const result = await agentExecutor.invoke({ input: req.body.query });
     console.log("Result obtained");
+    console.log(result.intermediateSteps)
+    console.log(result.output)
+
+    // const chain = await loadEvaluator("trajectory");
+
+    // const evaluation = await chain.evaluateAgentTrajectory({
+    //   prediction: result.output,
+    //   input: req.body.query,
+    //   agentTrajectory: result.intermediateSteps,
+    // });
+
+    // console.log("Evaluation obtained");
+    // console.log(evaluation);
 
     const outputParts = result.output.split(/(SQL Query:|Answer:)/);
 
