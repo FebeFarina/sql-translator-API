@@ -13,6 +13,7 @@ import { AIMessage } from "@langchain/core/messages";
 import { SqlToolkit, createSqlAgent } from "langchain/agents/toolkits/sql";
 import { SqlDatabase } from "langchain/sql_db";
 import { loadEvaluator } from "langchain/evaluation";
+import e from "express";
 
 const connect = async (params) => {
   const datasource = new DataSource({
@@ -48,6 +49,7 @@ app.use(
 
 app.post("/", async (req, res) => {
   try {
+    const startTimestamp = Date.now();
     console.log("Creating database connection...");
 
     const datasource = new DataSource({
@@ -170,7 +172,9 @@ app.post("/", async (req, res) => {
     const answer =
       answerIndex < outputParts.length ? outputParts[answerIndex].trim() : null;
 
-    res.status(200).send({ sqlQuery, answer });
+
+    const executionTime = Date.now() - startTimestamp;
+    res.status(200).send({ sqlQuery, answer, executionTime });
   } catch (e) {
     res.status(500).send(e);
   }

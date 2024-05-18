@@ -8,7 +8,8 @@ const results = {
 }
 
 async function fetchData() {
-    for (let i = 0; i < 10; i++) {
+    console.log("Fetching data...");
+    for (let i = 0; i < 25; i++) {
         const response = await fetch("http://localhost:3001", {
             method: "POST",
             headers: {
@@ -19,18 +20,19 @@ async function fetchData() {
                     databaseType: "postgres",
                     host: "localhost",
                     port: 5432,
-                    username: "sql-translator-user",
-                    password: "sql-translator-user",
+                    username: "postgres",
+                    password: "postgres",
                     database: "movies",
-                    schema: "movies",
+                    schema: "public",
                 },
-                query: "Give me the name of actors who acted in Steven Spielberg movies.",
+                query: "List the top 10 most popular movies, including their titles, release dates, and the number of genres they belong to.",
             }),
         });
         const data = await response.json();
         results.answers.push(data.answer);
         results.sqlQueries.push(data.sqlQuery);
         results.execTime.push(data.executionTime);
+        console.log(`Iteration ${i + 1} completed`);
     }
 
     results.meanTime = results.execTime.reduce((a, b) => a + b) / results.execTime.length;
