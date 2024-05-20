@@ -88,13 +88,14 @@ app.post("/", async (req, res) => {
   You have access to tools for interacting with the database.
   Only use the below tools.
   Only use the information returned by the below tools to construct your final answer.
-  You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
-  
-  DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
+  You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.`
+
+      + req.body.customPrompt +
+
+      `DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
   
   If the question does not seem related to the database, just return "I don't know" as the answer.
   The format of the output should ALWAYS be "SQL Query: <query>" and "Answer: <answer>. If a SQL query is not needed, return "SQL Query: N/A" and "Answer: <answer>".
-  
   `;
     const SQL_SUFFIX = `Begin!
   
